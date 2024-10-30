@@ -55,7 +55,7 @@ node* find_first(doubly_linked_list* dll, char* str_to_find){
   }
 }
 
-int main(int argc, char const *argv[]) {
+int xmain(int argc, char const *argv[]) {
   doubly_linked_list dll;
   initialize_doubly_linked_list(&dll);
   printf("Linked list size: %d\n", dll.size);
