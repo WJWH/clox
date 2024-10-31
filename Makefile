@@ -1,5 +1,8 @@
 CC = gcc
 
+# Add parallel execution by default
+MAKEFLAGS += --jobs
+
 # This works (gathers up all the .c files in current folder and compiles them into clox executable) but
 # is not incremental and will recompile everything each time
 # clox: $(wildcard *.c)
