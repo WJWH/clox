@@ -10,6 +10,8 @@ MAKEFLAGS += --jobs
 
 CLOX_OBJECTS = main.o chunk.o memory.o debug.o
 
+build: clox
+
 clox: $(CLOX_OBJECTS)
 	$(CC) $^ -o $@
 
