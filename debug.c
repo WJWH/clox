@@ -18,8 +18,8 @@ static int simpleInstruction(const char* name, int offset) {
 
 static int constantInstruction(const char* name, Chunk* chunk, int offset) {
   uint8_t constant_index = chunk->code[offset+1];
-  printf("%-16s %4d '", name, constant);
-  printValue(chunk->constants.values[constant]);
+  printf("%-16s %4d '", name, constant_index);
+  printValue(chunk->constants.values[constant_index]);
   printf("'\n");
   return offset + 2; // one for OP_CONSTANT and one for the constant index
 }
