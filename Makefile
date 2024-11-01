@@ -8,7 +8,7 @@ MAKEFLAGS += --jobs
 # clox: $(wildcard *.c)
 # 	$(CC) $^ -o clox
 
-CLOX_OBJECTS = main.o chunk.o memory.o debug.o
+CLOX_OBJECTS = main.o chunk.o memory.o debug.o value.o
 
 build: clox
 
