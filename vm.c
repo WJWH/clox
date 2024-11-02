@@ -6,10 +6,25 @@
 
 VM vm; 
 
+static void resetStack() {
+  vm.stackTop = vm.stack; // not even zeroing out the array, just "forget" about the contents
+}
+
 void initVM() {
+  resetStack();
 }
 
 void freeVM() {
+}
+
+void push(Value value) {
+  *vm.stackTop = value;
+  vm.stackTop++;
+}
+
+Value pop() {
+  vm.stackTop--;
+  return *vm.stackTop;
 }
 
 static InterpretResult run() {
