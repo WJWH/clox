@@ -17,3 +17,11 @@ void initScanner(const char* source) {
   scanner.current = source;
   scanner.line = 1;
 }
+
+Token scanToken() {
+  scanner.start = scanner.current;
+
+  if (isAtEnd()) return makeToken(TOKEN_EOF);
+
+  return errorToken("Unexpected character.");
+}
