@@ -78,6 +78,24 @@ static InterpretResult run() {
 }
 
 InterpretResult interpret(const char* source) {
-  compile(source);
-  return INTERPRET_OK;
+  // allocate and initialize a new chunk
+  Chunk chunk;
+  initChunk(&chunk);
+
+  // try to compile the source into the new chunk. If that fails, free the chunk and return an error
+  if (!compile(source, &chunk)) {
+    freeChunk(&chunk);
+    return INTERPRET_COMPILE_ERROR;
+  }
+
+  // set the current chunk to the one we just compiled and the IP to the start of it
+  vm.chunk = &chunk;
+  vm.ip = vm.chunk->code;
+
+  // run it
+  InterpretResult result = run();
+
+  // don't forget to free the chunk!
+  freeChunk(&chunk);
+  return result;
 }
