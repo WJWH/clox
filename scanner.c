@@ -30,7 +30,7 @@ static char advance() {
   char currentChar = *scanner.current;
   scanner.current++;
   // return scanner.current[-1]; // wtf is this weird syntax (I know it works, but it's definitely not very clear IMO)
-  return currentChar
+  return currentChar;
 }
 
 static char peek() {
@@ -96,12 +96,12 @@ static void skipWhitespace() {
 
 static Token string() {
   while(peek() != '"' && !isAtEnd()) { // while the string is not ended yet, keep advancing
-    if peek() == '\n' current.line++;  // and update line nr as needed
+    if(peek() == '\n') scanner.line++;  // and update line nr as needed
     advance();
   }
 
   // now that the previous loop is done, either we're at the end of the string or at the end of the source code
-  if isAtEnd() return errorToken("Unterminated string.")
+  if(isAtEnd()) return errorToken("Unterminated string.");
 
   advance(); // consume the closing quote
   makeToken(TOKEN_STRING);
