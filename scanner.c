@@ -107,6 +107,22 @@ static Token string() {
   makeToken(TOKEN_STRING);
 }
 
+static Token number() {
+  while(isDigit(peek())) { // while the number is not ended yet, keep advancing
+    advance();
+  }
+
+  // maybe a fractional part?
+  if(peek() == '.' && isDigit(peekNext())) { // remember that you can have numbers like 5. and they will be parsed as 5.0
+    advance(); // consume the '.'
+    while(isDigit(peek())) { // while the fractional part is not ended yet, keep advancing
+      advance();
+    }
+  }
+
+  makeToken(TOKEN_NUMBER);
+}
+
 Token scanToken() {
   skipWhitespace();
   scanner.start = scanner.current;
