@@ -165,6 +165,11 @@ static void unary() {
   }
 }
 
+static void grouping() {
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+}
+
 // LOTS of precedence rules, one for each token type
 ParseRule rules[] = {
   [TOKEN_LEFT_PAREN]    = {grouping, NULL,   PREC_NONE},
@@ -234,10 +239,6 @@ static void expression() {
   parsePrecedence(PREC_ASSIGNMENT);
 }
 
-static void grouping() {
-  expression();
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
-}
 
 bool compile(const char* source, Chunk* chunk) {
   initScanner(source);
