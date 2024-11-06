@@ -12,20 +12,13 @@ typedef struct {
   bool panicMode;
 } Parser;
 
+static void expression();
+
 Parser parser;
 Chunk* compilingChunk;
 
 static Chunk* currentChunk() {
   return compilingChunk;
-}
-
-
-static void errorAtCurrent(const char* message) {
-  errorAt(&parser.current, message);
-}
-
-static void error(const char* message) {
-  errorAt(&parser.previous, message);
 }
 
 static void errorAt(Token* token, const char* message) {
@@ -43,6 +36,14 @@ static void errorAt(Token* token, const char* message) {
 
   fprintf(stderr, ": %s\n", message);
   parser.hadError = true;
+}
+
+static void errorAtCurrent(const char* message) {
+  errorAt(&parser.current, message);
+}
+
+static void error(const char* message) {
+  errorAt(&parser.previous, message);
 }
 
 static void advance() {
@@ -98,19 +99,31 @@ static void endCompiler() {
 }
 
 // actual grammar related functions
-static void grouping() {
-  expression();
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
-}
-
-
 static void number() {
   double value = strtod(parser.previous.start, NULL);
   emitConstant(value);
 }
 
+static void unary() {
+  TokenType operatorType = parser.previous.type;
+
+  // Compile the operand.
+  expression();
+
+  // Emit the operator instruction.
+  switch (operatorType) {
+    case TOKEN_MINUS: emitByte(OP_NEGATE); break;
+    default: return; // Unreachable.
+  }
+}
+
 static void expression() {
   // What goes here?
+}
+
+static void grouping() {
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
 bool compile(const char* source, Chunk* chunk) {
