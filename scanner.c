@@ -159,7 +159,7 @@ static Token string() {
   if(isAtEnd()) return errorToken("Unterminated string.");
 
   advance(); // consume the closing quote
-  makeToken(TOKEN_STRING);
+  return makeToken(TOKEN_STRING);
 }
 
 static Token number() {
@@ -175,7 +175,7 @@ static Token number() {
     }
   }
 
-  makeToken(TOKEN_NUMBER);
+  return makeToken(TOKEN_NUMBER);
 }
 
 Token scanToken() {
