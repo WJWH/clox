@@ -27,6 +27,7 @@ typedef enum {
 } Precedence;
 
 static void expression();
+static void parsePrecedence(Precedence precedence);
 
 Parser parser;
 Chunk* compilingChunk;
@@ -113,6 +114,20 @@ static void endCompiler() {
 }
 
 // actual grammar related functions
+static void binary() {
+  TokenType operatorType = parser.previous.type;
+  ParseRule* rule = getRule(operatorType);
+  parsePrecedence((Precedence)(rule->precedence + 1));
+
+  switch (operatorType) {
+    case TOKEN_PLUS:          emitByte(OP_ADD); break;
+    case TOKEN_MINUS:         emitByte(OP_SUBTRACT); break;
+    case TOKEN_STAR:          emitByte(OP_MULTIPLY); break;
+    case TOKEN_SLASH:         emitByte(OP_DIVIDE); break;
+    default: return; // Unreachable.
+  }
+}
+
 static void number() {
   double value = strtod(parser.previous.start, NULL);
   emitConstant(value);
@@ -122,7 +137,7 @@ static void unary() {
   TokenType operatorType = parser.previous.type;
 
   // Compile the operand.
-  expression();
+  parsePrecedence(PREC_UNARY);
 
   // Emit the operator instruction.
   switch (operatorType) {
@@ -136,7 +151,7 @@ static void parsePrecedence(Precedence precedence) {
 }
 
 static void expression() {
-  // What goes here?
+  parsePrecedence(PREC_ASSIGNMENT);
 }
 
 static void grouping() {
