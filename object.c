@@ -11,6 +11,12 @@
 static Obj* allocateObject(size_t size, ObjType type) {
   Obj* object = (Obj*)reallocate(NULL, 0, size); // get some memory
   object->type = type; // pre-set the type, rest of the fields will be done in allocateString/etc
+
+  // register the object in the big linked list of allocated objects so that the GC can find it later
+  // this means that vm.objects points to the most recently allocated object
+  object->next = vm.objects;
+  vm.objects = object;
+
   return object;
 }
 
