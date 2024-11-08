@@ -1,9 +1,12 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "common.h"
 #include "compiler.h"
 #include "debug.h"
+#include "object.h"
+#include "memory.h"
 #include "vm.h"
 
 
@@ -52,6 +55,22 @@ static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
+// pretty straightforward: get the strings from the stack, allocate new object, then copy
+// the characters into the new object and push the result back onto the stack
+static void concatenate() {
+  ObjString* b = AS_STRING(pop());
+  ObjString* a = AS_STRING(pop());
+
+  int length = a->length + b->length;
+  char* chars = ALLOCATE(char, length + 1); // once again one extra for the null terminator
+  memcpy(chars, a->chars, a->length);
+  memcpy(chars + a->length, b->chars, b->length);
+  chars[length] = '\0';
+
+  ObjString* result = takeString(chars, length);
+  push(OBJ_VAL(result));
+}
+
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
@@ -93,7 +112,20 @@ static InterpretResult run() {
         }
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
-      case OP_ADD:      BINARY_OP(NUMBER_VAL, +); break;
+      case OP_ADD: { // more complex than the other binary ops because it needs to work on strings too
+        if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+          concatenate();
+        } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+          double b = AS_NUMBER(pop());
+          double a = AS_NUMBER(pop());
+          push(NUMBER_VAL(a + b));
+        } else {
+          runtimeError(
+              "Operands must be two numbers or two strings.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
       case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
       case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
       case OP_DIVIDE:   BINARY_OP(NUMBER_VAL, /); break;
