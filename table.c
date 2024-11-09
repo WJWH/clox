@@ -35,7 +35,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
         // We found a tombstone.
         if (tombstone == NULL) tombstone = entry; // set tombstone (unless it was already set) and continue searching
       }
-    } else if (entry->key == key) {
+    } else if (entry->key == key) { // notice the pointer comparison instead of by value here. This is why string interning is needed
       // We found the key.
       return entry;
     }
@@ -118,5 +118,25 @@ void tableAddAll(Table* from, Table* to) {
     if (entry->key != NULL) {
       tableSet(to, entry->key, entry->value);
     }
+  }
+}
+
+ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash) {
+  if (table->count == 0) return NULL;
+
+  uint32_t index = hash % table->capacity;
+  for (;;) {
+    Entry* entry = &table->entries[index];
+    if (entry->key == NULL) {
+      // Stop if we find an empty non-tombstone entry. The string definitely isn't here
+      if (IS_NIL(entry->value)) return NULL;
+    } else if (entry->key->length == length && entry->key->hash == hash && memcmp(entry->key->chars, chars, length) == 0) {
+      // For efficiency, we compare the lengths and hash value first, and only if those match we double check the chars to make
+      // sure it's not a collision. If everything matches, we found the key.
+      // We found it.
+      return entry->key;
+    }
+
+    index = (index + 1) % table->capacity;
   }
 }
