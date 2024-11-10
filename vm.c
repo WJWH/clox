@@ -165,6 +165,25 @@ static InterpretResult run() {
         pop(); // then pop the expression result off the stack
         break;
       }
+      case OP_GET_GLOBAL: {
+        ObjString* name = READ_STRING(); // get name object from the stack
+        Value value; // allocate memory to put the value into
+        if (!tableGet(&vm.globals, name, &value)) { // read the value from the globals table
+          runtimeError("Undefined variable '%s'.", name->chars); // raise error if not there
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        push(value); // stick value onto the stack
+        break;
+      }
+      case OP_SET_GLOBAL: {
+        ObjString* name = READ_STRING(); // read the name
+        if (tableSet(&vm.globals, name, peek(0))) { // insert the new value and check if it was new
+          tableDelete(&vm.globals, name); // it was new! not allowed, you need to define the var first. Delete the value again
+          runtimeError("Undefined variable '%s'.", name->chars); // and report an error
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
       case OP_RETURN: {
         // Exit interpreter.
         return INTERPRET_OK;
