@@ -280,6 +280,12 @@ static void printStatement() {
   emitByte(OP_PRINT);
 }
 
+static void expressionStatement() {
+  expression();
+  consume(TOKEN_SEMICOLON, "Expect ';' after value.");
+  emitByte(OP_POP); // make sure we remove the result of the expression from the stack again
+}
+
 static void declaration() {
   statement();
 }
@@ -287,6 +293,8 @@ static void declaration() {
 static void statement() {
   if(match(TOKEN_PRINT)) {
     printStatement();
+  } else {
+    expressionStatement();
   }
 }
 
