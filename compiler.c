@@ -280,6 +280,32 @@ static void printStatement() {
   emitByte(OP_PRINT);
 }
 
+static void synchronize() {
+  parser.panicMode = false;
+
+  while (parser.current.type != TOKEN_EOF) {
+    if (parser.previous.type == TOKEN_SEMICOLON) return;
+    switch (parser.current.type) {
+      case TOKEN_CLASS:
+      case TOKEN_FUN:
+      case TOKEN_VAR:
+      case TOKEN_FOR:
+      case TOKEN_IF:
+      case TOKEN_WHILE:
+      case TOKEN_PRINT:
+      case TOKEN_RETURN:
+        // these "look like" statement boundaries, so perhaps we've reached a point where
+        // more parsing can be done to perhaps find additional errors
+        return;
+
+      default:
+        ; // Do nothing.
+    }
+
+    advance();
+  }
+}
+
 static void expressionStatement() {
   expression();
   consume(TOKEN_SEMICOLON, "Expect ';' after value.");
@@ -288,6 +314,8 @@ static void expressionStatement() {
 
 static void declaration() {
   statement();
+
+  if (parser.panicMode) synchronize();
 }
 
 static void statement() {
