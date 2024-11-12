@@ -184,6 +184,16 @@ static InterpretResult run() {
         }
         break;
       }
+      case OP_GET_LOCAL: {
+        uint8_t slot = READ_BYTE(); // next byte is the operand, indicating which slot in the stack the local is at
+        push(vm.stack[slot]); // read it and put it on top of the stack so other opcodes can access it
+        break;
+      }
+      case OP_SET_LOCAL: {
+        uint8_t slot = READ_BYTE(); // next byte is the operand, indicating which slot in the stack the local is at
+        vm.stack[slot] = peek(0); // write top of stack to the local, keeping it at top of stack too (assignments are expessions!!)
+        break;
+      }
       case OP_RETURN: {
         // Exit interpreter.
         return INTERPRET_OK;
