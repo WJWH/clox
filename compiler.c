@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -168,6 +169,12 @@ static void beginScope() {
 }
 
 static void endScope() {
+  while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
+    // pop locals for this scope off the stack until there are none left
+    emitByte(OP_POP);
+    current->localCount--;
+  }
+
   current->scopeDepth--;
 }
 
@@ -217,12 +224,61 @@ static uint8_t identifierConstant(Token* name) {
   return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
+static bool identifiersEqual(Token* a, Token* b) {
+  if (a->length != b->length) return false;
+  return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int resolveLocal(Compiler* compiler, Token* name) {
+  // walk the available locals and return its index on the stack if found
+  for (int i = compiler->localCount - 1; i >= 0; i--) {
+    Local* local = &compiler->locals[i];
+    if (identifiersEqual(name, &local->name)) {
+      return i;
+    }
+  }
+  // if no local with the requested name was found, return a special value
+  // indicating that it should be treated as a global
+  return -1;
+}
+
+static void addLocal(Token name) {
+  if (current->localCount == UINT8_COUNT) {
+    error("Too many local variables in function.");
+    return;
+  }
+
+  Local* local = &current->locals[current->localCount++]; // get the next local in the current compiler
+  local->name = name;                                     // name is name
+  local->depth = current->scopeDepth;                     // depth is how deep the scope nesting is
+}
+
+static void declareVariable() {
+  if (current->scopeDepth == 0) return;
+
+  Token* name = &parser.previous;
+  for (int i = current->localCount - 1; i >= 0; i--) {
+    Local* local = &current->locals[i];
+    if (local->depth != -1 && local->depth < current->scopeDepth) {
+      // we can finish if we encounter a scope deeper lower than the current one, since
+      // it's only an error to have two vars with the same name in the same scope. Same name
+      // in different scopes is okay.
+      break;
+    }
+
+    if (identifiersEqual(name, &local->name)) {
+      error("Already a variable with this name in this scope.");
+    }
+  }
+  addLocal(*name);
+}
+
 static uint8_t parseVariable(const char* errorMessage) {
   consume(TOKEN_IDENTIFIER, errorMessage);
 
-  declareVariable();
+  declareVariable(); // only does something is scopeDepth is bigger than 0
   if (current->scopeDepth > 0) return 0;
-
+  // scopeDepth is zero so we define a global
   return identifierConstant(&parser.previous);
 }
 
@@ -230,21 +286,33 @@ static void defineVariable(uint8_t global) {
   if (current->scopeDepth > 0) {
     return;
   }
-  
+
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 static void namedVariable(Token name, bool canAssign) {
-  // read the name
-  uint8_t arg = identifierConstant(&name);
-  // then check if it is followed by an = operator (and if we can assign)
-    if (canAssign && match(TOKEN_EQUAL)) {
-    // if so, parse the expression after the = too and treat this as a "set global" operation
-    expression();
-    emitBytes(OP_SET_GLOBAL, arg);
+  uint8_t getOp, setOp;
+  // check if the name referred to is a local or a global and set the emitted opcodes accordingly
+  int arg = resolveLocal(current, &name);
+  if (arg != -1) {
+    // arg doesn't need setting for locals, but will still be emitted later as part of emitBytes
+    getOp = OP_GET_LOCAL;
+    setOp = OP_SET_LOCAL;
   } else {
-    // if no = was found, it was a getter and we can just look it up in the globals table
-    emitBytes(OP_GET_GLOBAL, arg);
+    // arg was -1, so not a local and therefore a global
+    // read the name
+    arg = identifierConstant(&name); // replace the -1 with the place in the globals table
+    getOp = OP_GET_GLOBAL;
+    setOp = OP_SET_GLOBAL;
+  }
+  // then check if it is followed by an = operator (and if we can assign)
+  if (canAssign && match(TOKEN_EQUAL)) {
+    // if so, parse the expression after the = too and treat this as a "set" operation
+    expression();
+    emitBytes(setOp, (uint8_t)arg);
+  } else {
+    // if no = was found, it was a getter
+    emitBytes(getOp, (uint8_t)arg);
   }
 }
 
