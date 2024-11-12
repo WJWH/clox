@@ -234,6 +234,9 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   for (int i = compiler->localCount - 1; i >= 0; i--) {
     Local* local = &compiler->locals[i];
     if (identifiersEqual(name, &local->name)) {
+      if (local->depth == -1) { // variable has been declared but not yet defined
+        error("Can't read local variable in its own initializer.");
+      }
       return i;
     }
   }
@@ -250,7 +253,7 @@ static void addLocal(Token name) {
 
   Local* local = &current->locals[current->localCount++]; // get the next local in the current compiler
   local->name = name;                                     // name is name
-  local->depth = current->scopeDepth;                     // depth is how deep the scope nesting is
+  local->depth = -1;                                      // "impossible" sentinel value to indicate that it's not initialized yet
 }
 
 static void declareVariable() {
@@ -282,8 +285,15 @@ static uint8_t parseVariable(const char* errorMessage) {
   return identifierConstant(&parser.previous);
 }
 
+static void markInitialized() {
+  // set the depth of the latest local to the depth of the current scope (from -1, which it got from being declared in addLocal)
+  current->locals[current->localCount - 1].depth = current->scopeDepth;
+}
+
 static void defineVariable(uint8_t global) {
   if (current->scopeDepth > 0) {
+    // it's a local
+    markInitialized();
     return;
   }
 
