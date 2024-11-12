@@ -163,6 +163,14 @@ static void endCompiler() {
 #endif
 }
 
+static void beginScope() {
+  current->scopeDepth++;
+}
+
+static void endScope() {
+  current->scopeDepth--;
+}
+
 // actual grammar related functions
 static void binary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
@@ -211,10 +219,18 @@ static uint8_t identifierConstant(Token* name) {
 
 static uint8_t parseVariable(const char* errorMessage) {
   consume(TOKEN_IDENTIFIER, errorMessage);
+
+  declareVariable();
+  if (current->scopeDepth > 0) return 0;
+
   return identifierConstant(&parser.previous);
 }
 
 static void defineVariable(uint8_t global) {
+  if (current->scopeDepth > 0) {
+    return;
+  }
+  
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
@@ -332,11 +348,25 @@ static void expression() {
 }
 
 // statements of all types
+
+// blocks are just multiple declarations in a row until you reach the `}`
+static void block() {
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    declaration();
+  }
+
+  consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
 static void varDeclaration() {
   uint8_t global = parseVariable("Expect variable name.");
 
   if (match(TOKEN_EQUAL)) {
     expression(); // "var foo = 123"
+  } else if (match(TOKEN_LEFT_BRACE)) {
+    beginScope();
+    block();
+    endScope();
   } else {
     emitByte(OP_NIL); // just "var foo"
   }
