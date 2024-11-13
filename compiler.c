@@ -234,6 +234,17 @@ static void number(bool canAssign) {
   emitConstant(NUMBER_VAL(value));
 }
 
+static void or_(bool canAssign) {
+  int elseJump = emitJump(OP_JUMP_IF_FALSE);
+  int endJump = emitJump(OP_JUMP);
+
+  patchJump(elseJump);
+  emitByte(OP_POP);
+
+  parsePrecedence(PREC_OR);
+  patchJump(endJump);
+}
+
 static void string(bool canAssign) {
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
                                   parser.previous.length - 2)));
@@ -321,6 +332,15 @@ static void defineVariable(uint8_t global) {
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
+static void and_(bool canAssign) {
+  int endJump = emitJump(OP_JUMP_IF_FALSE);
+  // the next two lines will never be reached if the first arg is falsey, because the OP_JUMP_IF_FALSE above jumps over them
+  emitByte(OP_POP); // we've already had the first argument to AND but it was false and (false && x) == x
+  parsePrecedence(PREC_AND); // the second argument
+
+  patchJump(endJump);
+}
+
 static void namedVariable(Token name, bool canAssign) {
   uint8_t getOp, setOp;
   // check if the name referred to is a local or a global and set the emitted opcodes accordingly
@@ -394,7 +414,7 @@ ParseRule rules[] = {
   [TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
   [TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
-  [TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_AND]           = {NULL,     and_,   PREC_AND},
   [TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
@@ -402,7 +422,7 @@ ParseRule rules[] = {
   [TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
   [TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
-  [TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_OR]            = {NULL,     or_,    PREC_OR},
   [TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
