@@ -131,6 +131,16 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte2);
 }
 
+static void emitLoop(int loopStart) {
+  emitByte(OP_LOOP);
+
+  int offset = currentChunk()->count - loopStart + 2;
+  if (offset > UINT16_MAX) error("Loop body too large.");
+
+  emitByte((offset >> 8) & 0xff);
+  emitByte(offset & 0xff);
+}
+
 // 0xff is just the placeholder, needs to be patched later by patchJump()
 static int emitJump(uint8_t instruction) {
   emitByte(instruction);
@@ -502,6 +512,21 @@ static void printStatement() {
   emitByte(OP_PRINT);
 }
 
+static void whileStatement() {
+  int loopStart = currentChunk()->count;
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+
+  int exitJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  statement();
+  emitLoop(loopStart);
+
+  patchJump(exitJump);
+  emitByte(OP_POP);
+}
+
 static void synchronize() {
   parser.panicMode = false;
 
@@ -567,6 +592,8 @@ static void statement() {
     printStatement();
   } else if (match(TOKEN_IF)) {
     ifStatement();
+  } else if (match(TOKEN_WHILE)) {
+    whileStatement();
   } else {
     expressionStatement();
   }
