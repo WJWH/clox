@@ -559,6 +559,51 @@ static void expressionStatement() {
   emitByte(OP_POP); // make sure we remove the result of the expression from the stack again
 }
 
+static void forStatement() {
+  beginScope(); // all for loops virtually live in a new scope
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+  if (match(TOKEN_SEMICOLON)) {
+    // No initializer.
+  } else if (match(TOKEN_VAR)) {
+    varDeclaration(); // new variable just for the loop
+  } else {
+    expressionStatement(); // use existing variable(s)
+  }
+  consume(TOKEN_SEMICOLON, "Expect ';'.");
+
+  int loopStart = currentChunk()->count;
+  int exitJump = -1;
+  // maybe a finish condition
+  if (!match(TOKEN_SEMICOLON)) {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after loop condition.");
+
+    // Jump out of the loop if the condition is false.
+    exitJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP); // Condition.
+  }
+  // maybe an increment clause
+  if (!match(TOKEN_RIGHT_PAREN)) {
+    int bodyJump = emitJump(OP_JUMP);
+    int incrementStart = currentChunk()->count;
+    expression();
+    emitByte(OP_POP);
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+
+    emitLoop(loopStart);
+    loopStart = incrementStart;
+    patchJump(bodyJump);
+  }
+
+  statement();
+  emitLoop(loopStart);
+  if (exitJump != -1) { // if it WAS -1, there is not an exit condition
+    patchJump(exitJump);
+    emitByte(OP_POP); // don't forget to pop the condition off the stack
+  }
+  endScope();
+}
+
 static void ifStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
   expression(); // the condition
@@ -594,6 +639,8 @@ static void statement() {
     ifStatement();
   } else if (match(TOKEN_WHILE)) {
     whileStatement();
+  } else if (match(TOKEN_FOR)) {
+    forStatement();
   } else {
     expressionStatement();
   }
