@@ -14,6 +14,7 @@ VM vm;
 
 static void resetStack() {
   vm.stackTop = vm.stack; // not even zeroing out the array, just "forget" about the contents
+  vm.frameCount = 0;
 }
 
 static void runtimeError(const char* format, ...) {
