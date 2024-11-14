@@ -24,6 +24,14 @@ static void freeObject(Obj* object) {
       FREE(ObjString, object);
       break;
     }
+    case OBJ_FUNCTION: {
+      // note: function name doesn't need explicit freeing since it's a Lox object and so will
+      // be freed by the garbage collector
+      ObjFunction* function = (ObjFunction*)object;
+      freeChunk(&function->chunk);
+      FREE(ObjFunction, object);
+      break;
+    }
   }
 }
 
