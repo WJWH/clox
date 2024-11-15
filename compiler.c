@@ -51,7 +51,8 @@ typedef enum {
   TYPE_SCRIPT,
 } FunctionType;
 
-typedef struct {
+typedef struct Compiler {
+  struct Compiler* enclosing;
   ObjFunction* function;
   FunctionType type;
 
@@ -188,12 +189,13 @@ static void patchJump(int offset) {
 }
 
 static void initCompiler(Compiler* compiler, FunctionType type) {
+  compiler->enclosing = current; // stash a pointer to the outer compiler here
   compiler->function = NULL;
   compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
-  current = compiler;
+  current = compiler; // set the new one as the current compiler
 
   // claim the first stack slot for internal use by the VM.
   Local* local = &current->locals[current->localCount++]; // the address of the first empty local (should be the first one??)
@@ -211,6 +213,7 @@ static ObjFunction* endCompiler() {
     disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "<script>");
   }
 #endif
+  current = current->enclosing; // set the enclosing compiler as the current one again ("end scope")
   return function;
 }
 
@@ -529,7 +532,7 @@ static void varDeclaration() {
 
 static void function(FunctionType type) {
   Compiler compiler;
-  initCompiler(&compiler, type);
+  initCompiler(&compiler, type); // also sets the new compiler to be the current one
   beginScope(); // doesn't need closing because the entire compiler will go out of scope
 
   consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
