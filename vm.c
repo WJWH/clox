@@ -24,8 +24,9 @@ static void runtimeError(const char* format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-  size_t instruction = vm.ip - vm.chunk->code - 1;
-  int line = vm.chunk->lines[instruction];
+  CallFrame* frame = &vm.frames[vm.frameCount - 1];
+  size_t instruction = frame->ip - frame->function->chunk.code - 1;
+  int line = frame->function->chunk.lines[instruction];
   fprintf(stderr, "[line %d] in script\n", line);
   resetStack();
 }
@@ -235,24 +236,18 @@ static InterpretResult run() {
 }
 
 InterpretResult interpret(const char* source) {
-  // allocate and initialize a new chunk
-  Chunk chunk;
-  initChunk(&chunk);
+  // compile the source code into a new function, returning an error if compiling fails
+  ObjFunction* function = compile(source);
+  if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
-  // try to compile the source into the new chunk. If that fails, free the chunk and return an error
-  if (!compile(source, &chunk)) {
-    freeChunk(&chunk);
-    return INTERPRET_COMPILE_ERROR;
-  }
-
-  // set the current chunk to the one we just compiled and the IP to the start of it
-  vm.chunk = &chunk;
-  vm.ip = vm.chunk->code;
+  // push the function object representing the script onto the bottom of the stack
+  push(OBJ_VAL(function));
+  CallFrame* frame = &vm.frames[vm.frameCount++]; // get the first callframe
+  // and set the values for that frame
+  frame->function = function;
+  frame->ip = function->chunk.code;
+  frame->slots = vm.stack;
 
   // run it
-  InterpretResult result = run();
-
-  // don't forget to free the chunk!
-  freeChunk(&chunk);
-  return result;
+  return run();
 }
