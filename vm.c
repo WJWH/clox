@@ -275,11 +275,8 @@ InterpretResult interpret(const char* source) {
 
   // push the function object representing the script onto the bottom of the stack
   push(OBJ_VAL(function));
-  CallFrame* frame = &vm.frames[vm.frameCount++]; // get the first callframe
-  // and set the values for that frame
-  frame->function = function;
-  frame->ip = function->chunk.code;
-  frame->slots = vm.stack;
+  // then call that function (with argCount = 0, since the main script never has args)
+  call(function, 0);
 
   // run it
   return run();
