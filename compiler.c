@@ -196,6 +196,10 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler; // set the new one as the current compiler
+  if (type != TYPE_SCRIPT) { // then it must be a function
+    // so we set the current function name properly to aid in disassembly
+    current->function->name = copyString(parser.previous.start, parser.previous.length);
+  }
 
   // claim the first stack slot for internal use by the VM.
   Local* local = &current->locals[current->localCount++]; // the address of the first empty local (should be the first one??)
