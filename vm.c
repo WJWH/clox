@@ -58,6 +58,29 @@ static Value peek(int distance) {
   return vm.stackTop[-1 - distance];
 }
 
+// set up new call frame
+static bool call(ObjFunction* function, int argCount) {
+  CallFrame* frame = &vm.frames[vm.frameCount++];
+  frame->function = function;
+  frame->ip = function->chunk.code;
+  frame->slots = vm.stackTop - argCount - 1; // slots for this frame start from stacktop, minus the args, minus 1 extra for the function object
+  return true;
+}
+
+// mostly just asserting that this Value is indeed callable.
+static bool callValue(Value callee, int argCount) {
+  if (IS_OBJ(callee)) {
+    switch (OBJ_TYPE(callee)) {
+      case OBJ_FUNCTION:
+        return call(AS_FUNCTION(callee), argCount);
+      default:
+        break; // Non-callable object type.
+    }
+  }
+  runtimeError("Can only call functions and classes.");
+  return false;
+}
+
 // only nil and false are falsey in lox
 static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
@@ -219,6 +242,16 @@ static InterpretResult run() {
       case OP_LOOP: {
         uint16_t offset = READ_SHORT();
         frame->ip -= offset;
+        break;
+      }
+      case OP_CALL: {
+        // the function object is below all the args on the stack, so we read how many args there are and then peek
+        // that many values from the top. If there's not a callable object there, return with a runtime error, else call it
+        int argCount = READ_BYTE();
+        if (!callValue(peek(argCount), argCount)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        frame = &vm.frames[vm.frameCount - 1]; // reset the frame after the function call is done
         break;
       }
       case OP_RETURN: {
