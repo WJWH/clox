@@ -731,7 +731,6 @@ ObjFunction* compile(const char* source) {
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
-  compilingChunk = chunk;
 
   parser.hadError = false;
   parser.panicMode = false;
