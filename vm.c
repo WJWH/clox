@@ -282,8 +282,17 @@ static InterpretResult run() {
         break;
       }
       case OP_RETURN: {
-        // Exit interpreter.
-        return INTERPRET_OK;
+        Value result = pop(); // get result from the stack
+        vm.frameCount--;
+        if (vm.frameCount == 0) { // we returned from the top level script, so the program ends
+          pop(); // be a good citizen and pop the top level function off the stack, which is now empty
+          return INTERPRET_OK;
+        }
+
+        vm.stackTop = frame->slots; // "pop" the function object, its args and its local variables off the stack
+        push(result); // put result back on the stack for further processing
+        frame = &vm.frames[vm.frameCount - 1]; // go back to previous callframe
+        break;
       }
     }
   }
