@@ -60,6 +60,18 @@ static Value peek(int distance) {
 
 // set up new call frame
 static bool call(ObjFunction* function, int argCount) {
+  // various runtime error checks
+  if (argCount != function->arity) {
+    runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+    return false;
+  }
+
+  if (vm.frameCount == FRAMES_MAX) {
+    runtimeError("Stack overflow.");
+    return false;
+  }
+
+  // everything seems to be OK, set up new callframe for this function and jump to it by setting the ip to its bytecode chunk
   CallFrame* frame = &vm.frames[vm.frameCount++];
   frame->function = function;
   frame->ip = function->chunk.code;
