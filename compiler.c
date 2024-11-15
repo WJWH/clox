@@ -536,7 +536,16 @@ static void function(FunctionType type) {
   beginScope(); // doesn't need closing because the entire compiler will go out of scope
 
   consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
-  // no parsing of args yet
+  if (!check(TOKEN_RIGHT_PAREN)) { // if there's not immediately a closing paren, there must be at least one arg
+    do {
+      current->function->arity++;
+      if (current->function->arity > 255) {
+        errorAtCurrent("Can't have more than 255 parameters.");
+      }
+      uint8_t constant = parseVariable("Expect parameter name."); // arg names are just variable names in the new scope
+      defineVariable(constant); // so we immediately define them here
+    } while (match(TOKEN_COMMA));
+  }
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
   consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
   block(); // the function body is just a block. block() also consumes the closing }
