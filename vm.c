@@ -20,6 +20,7 @@ static Value clockNative(int argCount, Value* args) {
 static void resetStack() {
   vm.stackTop = vm.stack; // not even zeroing out the array, just "forget" about the contents
   vm.frameCount = 0;
+  vm.openUpvalues = NULL;
 }
 
 static void runtimeError(const char* format, ...) {
@@ -30,7 +31,7 @@ static void runtimeError(const char* format, ...) {
   fputs("\n", stderr);
 
   CallFrame* frame = &vm.frames[vm.frameCount - 1];
-  size_t instruction = frame->ip - frame->closure->function->chunk.code - 1;
+  size_t instruction = frame->ip - frame->closure->function->chunk.code - 1; // deze frame->closure->function was niet aangepast in het boek, maar moet toch wel???
   int line = frame->closure->function->chunk.lines[instruction];
   fprintf(stderr, "[line %d] in script\n", line);
 
@@ -136,7 +137,28 @@ static bool isFalsey(Value value) {
 }
 
 static ObjUpvalue* captureUpvalue(Value* local) {
+  // walk the open upvalue linked list to see if there is already an upvalue referring to this local
+  ObjUpvalue* prevUpvalue = NULL;
+  ObjUpvalue* upvalue = vm.openUpvalues;
+  while (upvalue != NULL && upvalue->location > local) {
+    prevUpvalue = upvalue;
+    upvalue = upvalue->next;
+  }
+  // if so, just use that upvalue so multiple closures with the same closed-over variable
+  // can see each others' writes to that upvalue
+  if (upvalue != NULL && upvalue->location == local) {
+    return upvalue;
+  }
+
   ObjUpvalue* createdUpvalue = newUpvalue(local);
+  createdUpvalue->next = upvalue;
+
+  if (prevUpvalue == NULL) {
+    vm.openUpvalues = createdUpvalue;
+  } else {
+    // has been set in the while loop above. This keeps the list sorted
+    prevUpvalue->next = createdUpvalue;
+  }
   return createdUpvalue;
 }
 
