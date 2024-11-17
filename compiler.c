@@ -44,6 +44,7 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
+  bool isCaptured;
 } Local;
 
 typedef struct {
@@ -235,7 +236,13 @@ static void beginScope() {
 static void endScope() {
   while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
     // pop locals for this scope off the stack until there are none left
-    emitByte(OP_POP);
+    if (current->locals[current->localCount - 1].isCaptured) {
+      // if the local was captured by a closure, hoist it into its upvalue
+      emitByte(OP_CLOSE_UPVALUE);
+    } else {
+      // otherwise it was a local and we can forget about it now
+      emitByte(OP_POP);
+    }
     current->localCount--;
   }
 
@@ -371,6 +378,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
   int local = resolveLocal(compiler->enclosing, name);
   // if it was found, add an upvalue for that local
   if (local != -1) {
+    compiler->enclosing->locals[local].isCaptured = true;
     return addUpvalue(compiler, (uint8_t)local, true);
   }
 
@@ -396,6 +404,7 @@ static void addLocal(Token name) {
   Local* local = &current->locals[current->localCount++]; // get the next local in the current compiler
   local->name = name;                                     // name is name
   local->depth = -1;                                      // "impossible" sentinel value to indicate that it's not initialized yet
+  local->isCaptured = false;                              // all values start out as local values and not as upvalues
 }
 
 static void declareVariable() {
