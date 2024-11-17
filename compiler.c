@@ -46,6 +46,11 @@ typedef struct {
   int depth;
 } Local;
 
+typedef struct {
+  uint8_t index;
+  bool isLocal;
+} Upvalue;
+
 typedef enum {
   TYPE_FUNCTION,
   TYPE_SCRIPT,
@@ -58,6 +63,7 @@ typedef struct Compiler {
 
   Local locals[UINT8_COUNT];
   int localCount;
+  Upvalue upvalues[UINT8_COUNT];
   int scopeDepth;
 } Compiler;
 
@@ -334,6 +340,43 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   return -1;
 }
 
+static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
+  int upvalueCount = compiler->function->upvalueCount;
+  
+  // if the index is already present, just use that one
+  for (int i = 0; i < upvalueCount; i++) {
+    Upvalue* upvalue = &compiler->upvalues[i];
+    if (upvalue->index == index && upvalue->isLocal == isLocal) {
+      return i;
+    }
+  }
+
+  if (upvalueCount == UINT8_COUNT) {
+    error("Too many closure variables in function.");
+    return 0;
+  }
+
+  compiler->upvalues[upvalueCount].isLocal = isLocal;
+  compiler->upvalues[upvalueCount].index = index;
+  return compiler->function->upvalueCount++;
+}
+
+
+static int resolveUpvalue(Compiler* compiler, Token* name) {
+  // on the top level we are by definition not in a closure
+  if (compiler->enclosing == NULL) return -1;
+
+  // go find the local in the enclosing env. This is only called after finding it in the current scope failed,
+  // so the enclosing scope is the logical place to start
+  int local = resolveLocal(compiler->enclosing, name);
+  // if it was found, add an upvalue for that local
+  if (local != -1) {
+    return addUpvalue(compiler, (uint8_t)local, true);
+  }
+  // otherwise return a value indicating not found
+  return -1;
+}
+
 static void addLocal(Token name) {
   if (current->localCount == UINT8_COUNT) {
     error("Too many local variables in function.");
@@ -409,6 +452,9 @@ static void namedVariable(Token name, bool canAssign) {
     // arg doesn't need setting for locals, but will still be emitted later as part of emitBytes
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
+  } else if ((arg = resolveUpvalue(current, &name)) != -1) { // arg is an upvalue
+    getOp = OP_GET_UPVALUE;
+    setOp = OP_SET_UPVALUE;
   } else {
     // arg was -1, so not a local and therefore a global
     // read the name
