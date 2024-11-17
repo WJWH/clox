@@ -400,6 +400,7 @@ InterpretResult interpret(const char* source) {
   if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
   // push the function object representing the script onto the bottom of the stack
+  push(OBJ_VAL(function));
   ObjClosure* closure = newClosure(function); // make new closure to get it into the constant table
   pop(); // remove the newly created function object from the stack (and throw it away since we already have it)
   push(OBJ_VAL(closure)); // put it back onto the stack as a closure
