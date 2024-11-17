@@ -576,7 +576,7 @@ static void function(FunctionType type) {
   block(); // the function body is just a block. block() also consumes the closing }
 
   ObjFunction* function = endCompiler();
-  emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // all functions are closures
 }
 
 static void funDeclaration() {
