@@ -325,6 +325,16 @@ static InterpretResult run() {
         }
         break;
       }
+      case OP_GET_UPVALUE: {
+        uint8_t slot = READ_BYTE(); // slot in the upvalue array where the pointer to the upvalue is kept
+        push(*frame->closure->upvalues[slot]->location); // get the object pointed at and stick it on the stack
+        break;
+      }
+      case OP_SET_UPVALUE: {
+        uint8_t slot = READ_BYTE(); // slot in the upvalue array where the pointer to the upvalue is kept
+        *frame->closure->upvalues[slot]->location = peek(0); // set the value at the pointed address to the value at the top of the stack
+        break;
+      }
       case OP_RETURN: {
         Value result = pop(); // get result from the stack
         vm.frameCount--;
