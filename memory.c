@@ -36,6 +36,9 @@ static void freeObject(Obj* object) {
       FREE(ObjNative, object);
       break;
     case OBJ_CLOSURE: {
+      ObjClosure* closure = (ObjClosure*)object;
+      // the closure doesn't own the upvalue objects themselves, but it does own the array containing pointers to them
+      FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);
       FREE(ObjClosure, object);
       break;
     }
