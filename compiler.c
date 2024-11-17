@@ -373,6 +373,16 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
   if (local != -1) {
     return addUpvalue(compiler, (uint8_t)local, true);
   }
+
+  // if the value was not found in the locals, maybe an enclosing scope has captured it in its own upvalues?
+  // first go all the way "up" the scope chain, trying to find it
+  int upvalue = resolveUpvalue(compiler->enclosing, name);
+  // if you've found it here, it means you didn't find it in the locals. Make an upvalue so that there's an intermediate
+  // link going "down" the recursion chain:
+  if (upvalue != -1) {
+    return addUpvalue(compiler, (uint8_t)upvalue, false); // notice the "false", it's not a captured local but an upvalue higher up the scope chain
+  }
+
   // otherwise return a value indicating not found
   return -1;
 }
@@ -623,6 +633,11 @@ static void function(FunctionType type) {
 
   ObjFunction* function = endCompiler();
   emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function))); // all functions are closures
+  // also emit the upvalues and whether they're locals or not
+  for (int i = 0; i < function->upvalueCount; i++) {
+    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+    emitByte(compiler.upvalues[i].index);
+  }
 }
 
 static void funDeclaration() {
