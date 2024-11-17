@@ -162,6 +162,15 @@ static ObjUpvalue* captureUpvalue(Value* local) {
   return createdUpvalue;
 }
 
+static void closeUpvalues(Value* last) {
+  while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
+    ObjUpvalue* upvalue = vm.openUpvalues;
+    upvalue->closed = *upvalue->location;
+    upvalue->location = &upvalue->closed;
+    vm.openUpvalues = upvalue->next;
+  }
+}
+
 
 // pretty straightforward: get the strings from the stack, allocate new object, then copy
 // the characters into the new object and push the result back onto the stack
@@ -357,8 +366,13 @@ static InterpretResult run() {
         *frame->closure->upvalues[slot]->location = peek(0); // set the value at the pointed address to the value at the top of the stack
         break;
       }
+      case OP_CLOSE_UPVALUE:
+        closeUpvalues(vm.stackTop - 1);
+        pop();
+        break;
       case OP_RETURN: {
         Value result = pop(); // get result from the stack
+        closeUpvalues(frame->slots); // close any upvalues remaining on the stack
         vm.frameCount--;
         if (vm.frameCount == 0) { // we returned from the top level script, so the program ends
           pop(); // be a good citizen and pop the top level function off the stack, which is now empty
