@@ -135,6 +135,12 @@ static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
+static ObjUpvalue* captureUpvalue(Value* local) {
+  ObjUpvalue* createdUpvalue = newUpvalue(local);
+  return createdUpvalue;
+}
+
+
 // pretty straightforward: get the strings from the stack, allocate new object, then copy
 // the characters into the new object and push the result back onto the stack
 static void concatenate() {
@@ -305,6 +311,18 @@ static InterpretResult run() {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
         ObjClosure* closure = newClosure(function);
         push(OBJ_VAL(closure));
+        // fill in the upvalue array for the closure
+        for (int i = 0; i < closure->upvalueCount; i++) {
+          uint8_t isLocal = READ_BYTE(); // seem quite wasteful to use and entire byte for a bool?
+          uint8_t index = READ_BYTE();
+          if (isLocal) {
+            // make a new upvalue from the corresponding local
+            closure->upvalues[i] = captureUpvalue(frame->slots + index);
+          } else {
+            // it comes from an enclosing scope, so just copy the pointer to an upvalue from the enclosing scope
+            closure->upvalues[i] = frame->closure->upvalues[index];
+          }
+        }
         break;
       }
       case OP_RETURN: {
