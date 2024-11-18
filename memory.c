@@ -26,9 +26,27 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
   return result;
 }
 
+void markObject(Obj* object) {
+  if (object == NULL) return;
+#ifdef DEBUG_LOG_GC
+  printf("%p mark ", (void*)object);
+  printValue(OBJ_VAL(object));
+  printf("\n");
+#endif
+  object->isMarked = true;
+}
+
+void markValue(Value value) {
+  // non-object values like booleans and numbers have no dynamic allocation at all, so they don't need management by the GC
+  if (IS_OBJ(value)) markObject(AS_OBJ(value));
+}
+
 // many types of object have special extra fields that need custom freeing logic,
 // so we switch on object type to see what is needed
 static void freeObject(Obj* object) {
+#ifdef DEBUG_LOG_GC
+  printf("%p free type %d\n", (void*)object, object->type);
+#endif
   switch (object->type) {
     case OBJ_STRING: {
       ObjString* string = (ObjString*)object;
@@ -58,6 +76,22 @@ static void freeObject(Obj* object) {
       FREE(ObjUpvalue, object);
       break;
   }
+}
+
+static void markRoots() {
+  // all values on the stack are roots
+  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+    markValue(*slot);
+  }
+  // globals are also roots
+  markTable(&vm.globals);
+}
+
+void collectGarbage() {
+#ifdef DEBUG_LOG_GC
+  printf("-- gc begin\n");
+#endif
+  markRoots();
 }
 
 // walk the linked list of allocated objects, calling freeObject each one

@@ -140,3 +140,14 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
     index = (index + 1) % table->capacity;
   }
 }
+
+void markTable(Table* table) {
+  // both the keys AND the values need to be marked
+  // empty slots have NULL as the key and NIL_VAL (or a bool if it's a tombstone) as the value
+  // so those just don't get marked by markObject and markValue
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    markObject((Obj*)entry->key);
+    markValue(entry->value);
+  }
+}
