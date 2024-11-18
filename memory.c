@@ -28,18 +28,64 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 }
 
 void markObject(Obj* object) {
-  if (object == NULL) return;
+  if (object == NULL) return;    // nothing to mark
+  if (object->isMarked) return;  // object is already marked, re-adding to the graystack might cause an infinite loop so we exit early
 #ifdef DEBUG_LOG_GC
   printf("%p mark ", (void*)object);
   printValue(OBJ_VAL(object));
   printf("\n");
 #endif
   object->isMarked = true;
+
+  // grow the grayStack capacity if needed
+  if (vm.grayCapacity < vm.grayCount + 1) {
+    vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
+    // notice we don't use the `reallocate` from the memory.c module here, since that one could itself
+    // trigger a GC and we might get stuck in an infinite loop of GCs causing more GCs. Instead use normal realloc from libc
+    vm.grayStack = (Obj**)realloc(vm.grayStack, sizeof(Obj*) * vm.grayCapacity);
+    if (vm.grayStack == NULL) exit(1); // if we couldn't allocate memory, exit the program
+  }
+
+  // increase the grayCount and stick the new object on top of the grayStack
+  vm.grayStack[vm.grayCount++] = object;
 }
 
 void markValue(Value value) {
   // non-object values like booleans and numbers have no dynamic allocation at all, so they don't need management by the GC
   if (IS_OBJ(value)) markObject(AS_OBJ(value));
+}
+
+static void markArray(ValueArray* array) {
+  for (int i = 0; i < array->count; i++) {
+    markValue(array->values[i]);
+  }
+}
+
+static void blackenObject(Obj* object) {
+  switch (object->type) {
+    // objects without references to other objects
+    case OBJ_NATIVE:
+    case OBJ_STRING:
+      break;
+    // only the closed value. If the upvalue is still open then closed is NULL and markValue won't do anything
+    case OBJ_UPVALUE:
+      markValue(((ObjUpvalue*)object)->closed);
+      break;
+    case OBJ_FUNCTION: {
+      ObjFunction* function = (ObjFunction*)object;
+      markObject((Obj*)function->name);
+      markArray(&function->chunk.constants);
+      break;
+    }
+    case OBJ_CLOSURE: {
+      ObjClosure* closure = (ObjClosure*)object;
+      markObject((Obj*)closure->function);
+      for (int i = 0; i < closure->upvalueCount; i++) {
+        markObject((Obj*)closure->upvalues[i]);
+      }
+      break;
+    }
+  }
 }
 
 // many types of object have special extra fields that need custom freeing logic,
@@ -98,11 +144,44 @@ static void markRoots() {
   markTable(&vm.globals);
 }
 
+static void traceReferences() {
+  // while we have gray objects left, take the topmost one from the graystack and mark its children
+  while (vm.grayCount > 0) {
+    Obj* object = vm.grayStack[--vm.grayCount];
+    blackenObject(object);
+  }
+}
+
+static void sweep() {
+  // walk the entire list of objects known to the VM, removing and freeing any unmarked objects
+  Obj* previous = NULL;
+  Obj* object = vm.objects;
+  while (object != NULL) {
+    if (object->isMarked) {
+      object->isMarked = false; // reset isMarked for the next run
+      previous = object;
+      object = object->next;
+    } else {
+      Obj* unreached = object;
+      object = object->next;
+      if (previous != NULL) { // special case to check if we're at the head of the list
+        previous->next = object;
+      } else {
+        vm.objects = object;
+      }
+
+      freeObject(unreached);
+    }
+  }
+}
+
 void collectGarbage() {
 #ifdef DEBUG_LOG_GC
   printf("-- gc begin\n");
 #endif
   markRoots();
+  traceReferences();
+  sweep();
 }
 
 // walk the linked list of allocated objects, calling freeObject each one
@@ -113,4 +192,6 @@ void freeObjects() {
     freeObject(object);
     object = next;
   }
+  // also free the entire grayStack
+  free(vm.grayStack);
 }
