@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include "compiler.h"
 #include "memory.h"
 #include "vm.h"
 
@@ -83,8 +84,6 @@ static void markRoots() {
   for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
     markValue(*slot);
   }
-  // globals are also roots
-  markTable(&vm.globals);
   // the closures in the callframes used by the VM are also roots
   for (int i = 0; i < vm.frameCount; i++) {
     markObject((Obj*)vm.frames[i].closure);
@@ -93,6 +92,10 @@ static void markRoots() {
   for (ObjUpvalue* upvalue = vm.openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
     markObject((Obj*)upvalue);
   }
+
+  markCompilerRoots();
+  // globals are also roots
+  markTable(&vm.globals);
 }
 
 void collectGarbage() {
