@@ -85,6 +85,14 @@ static void markRoots() {
   }
   // globals are also roots
   markTable(&vm.globals);
+  // the closures in the callframes used by the VM are also roots
+  for (int i = 0; i < vm.frameCount; i++) {
+    markObject((Obj*)vm.frames[i].closure);
+  }
+  // as well as the current list of open upvalues
+  for (ObjUpvalue* upvalue = vm.openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
+    markObject((Obj*)upvalue);
+  }
 }
 
 void collectGarbage() {

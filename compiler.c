@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "compiler.h"
+#include "memory.h"
 #include "object.h"
 #include "scanner.h"
 
@@ -831,4 +832,13 @@ ObjFunction* compile(const char* source) {
 
   ObjFunction* function = endCompiler();
   return parser.hadError ? NULL : function;
+}
+
+void markCompilerRoots() {
+  Compiler* compiler = current;
+  // walk up the stack of scopes and mark all the current functions
+  while (compiler != NULL) {
+    markObject((Obj*)compiler->function);
+    compiler = compiler->enclosing;
+  }
 }
