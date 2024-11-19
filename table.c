@@ -141,6 +141,16 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
   }
 }
 
+// delete all unmarked entries from the table
+void tableRemoveWhite(Table* table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    if (entry->key != NULL && !entry->key->obj.isMarked) {
+      tableDelete(table, entry->key);
+    }
+  }
+}
+
 void markTable(Table* table) {
   // both the keys AND the values need to be marked
   // empty slots have NULL as the key and NIL_VAL (or a bool if it's a tombstone) as the value
