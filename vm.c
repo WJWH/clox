@@ -181,8 +181,8 @@ static void closeUpvalues(Value* last) {
 // pretty straightforward: get the strings from the stack, allocate new object, then copy
 // the characters into the new object and push the result back onto the stack
 static void concatenate() {
-  ObjString* b = AS_STRING(pop());
-  ObjString* a = AS_STRING(pop());
+  ObjString* b = AS_STRING(peek(0)); // peek, not pop, since if allocating the new string triggers a GC there might be nothing referring to these strings anymore
+  ObjString* a = AS_STRING(peek(1));
 
   int length = a->length + b->length;
   char* chars = ALLOCATE(char, length + 1); // once again one extra for the null terminator
@@ -191,6 +191,8 @@ static void concatenate() {
   chars[length] = '\0';
 
   ObjString* result = takeString(chars, length);
+  pop(); // now it's safe to pop the strings off the stack
+  pop();
   push(OBJ_VAL(result));
 }
 

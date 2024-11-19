@@ -2,6 +2,7 @@
 
 #include "chunk.h"
 #include "memory.h"
+#include "vm.h"
 
 void initChunk(Chunk* chunk) {
   chunk->count = 0;
@@ -25,7 +26,9 @@ void writeChunk(Chunk* chunk, uint8_t byte, int line) {
 }
 
 int addConstant(Chunk* chunk, Value value) {
+  push(value); // if writeValueArray needs to grow its array, it might trigger GC, which would delete the new constant since there nothing referring to it yet
   writeValueArray(&chunk->constants, value); // adds the value, then increments count
+  pop();
   return chunk->constants.count - 1; // return the index where the value was put, so we can find it later
 }
 

@@ -60,7 +60,12 @@ static ObjString* allocateString(char* chars, int length, uint32_t hash) {
   string->length = length;
   string->chars = chars;
   string->hash = hash;
+
+  // if tableSet causes the table to grow, the allocation might trigger a GC. Because the string is not referred to anywhere
+  // yet, that causes the new string object to be deleted immediately.
+  push(OBJ_VAL(string));
   tableSet(&vm.strings, string, NIL_VAL);
+  pop();
   return string;
 }
 
