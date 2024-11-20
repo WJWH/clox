@@ -112,6 +112,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
         printf("%04d      |                     %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
       }
       return offset;
+    case OP_CLASS:
+      return constantInstruction("OP_CLASS", chunk, offset);
     }
     case OP_GET_UPVALUE:
       return byteInstruction("OP_GET_UPVALUE", chunk, offset);

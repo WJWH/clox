@@ -378,6 +378,10 @@ static InterpretResult run() {
         closeUpvalues(vm.stackTop - 1);
         pop();
         break;
+      case OP_CLASS:
+        // read the class name from the constant table using the index on top of the stack, then make a class object out of it and stick that on the stack
+        push(OBJ_VAL(newClass(READ_STRING())));
+        break;
       case OP_RETURN: {
         Value result = pop(); // get result from the stack
         closeUpvalues(frame->slots); // close any upvalues remaining on the stack
