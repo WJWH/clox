@@ -96,6 +96,12 @@ static void blackenObject(Obj* object) {
       markObject((Obj*)klass->name);
       break;
     }
+    case OBJ_INSTANCE: {
+      ObjInstance* instance = (ObjInstance*)object;
+      markObject((Obj*)instance->klass);
+      markTable(&instance->fields);
+      break;
+    }
   }
 }
 
@@ -136,7 +142,14 @@ static void freeObject(Obj* object) {
     case OBJ_CLASS: {
       FREE(ObjClass, object);
       break;
-    } 
+    }
+    case OBJ_INSTANCE: {
+      ObjInstance* instance = (ObjInstance*)object;
+      // we only need to free the table itself, not the entries inside. Those might be referred to from other places as well and will be taken care of by the GC
+      freeTable(&instance->fields);
+      FREE(ObjInstance, object);
+      break;
+    }
   }
 }
 
