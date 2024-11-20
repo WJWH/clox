@@ -291,6 +291,12 @@ static void call(bool canAssign) {
   emitBytes(OP_CALL, argCount);
 }
 
+static uint8_t identifierConstant(Token* name) {
+  // get the lexeme out of the token, convert to an OBJ_STRING and make a constant out of that object
+  // in the constant table of the current chunk
+  return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+}
+
 static void dot(bool canAssign) {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(&parser.previous);
@@ -331,12 +337,6 @@ static void or_(bool canAssign) {
 static void string(bool canAssign) {
   emitConstant(OBJ_VAL(copyString(parser.previous.start + 1,
                                   parser.previous.length - 2)));
-}
-
-static uint8_t identifierConstant(Token* name) {
-  // get the lexeme out of the token, convert to an OBJ_STRING and make a constant out of that object
-  // in the constant table of the current chunk
-  return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
 static bool identifiersEqual(Token* a, Token* b) {
