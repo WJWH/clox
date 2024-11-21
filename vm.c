@@ -182,6 +182,13 @@ static void closeUpvalues(Value* last) {
   }
 }
 
+// very straightforward. Just remember to not pop the method value off the stack prematurely so they remain findable by the GC in all cases
+static void defineMethod(ObjString* name) {
+  Value method = peek(0);
+  ObjClass* klass = AS_CLASS(peek(1));
+  tableSet(&klass->methods, name, method);
+  pop();
+}
 
 // pretty straightforward: get the strings from the stack, allocate new object, then copy
 // the characters into the new object and push the result back onto the stack
