@@ -134,12 +134,30 @@ static bool callValue(Value callee, int argCount) {
         vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
         return true;
       }
+      case OBJ_BOUND_METHOD: {
+        ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+        return call(bound->method, argCount);
+      }
       default:
         break; // Non-callable object type.
     }
   }
   runtimeError("Can only call functions and classes.");
   return false;
+}
+
+// tries to bind a method, will leave it on top of the stack if found
+static bool bindMethod(ObjClass* klass, ObjString* name) {
+  Value method;
+  if (!tableGet(&klass->methods, name, &method)) {
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
+  }
+
+  ObjBoundMethod* bound = newBoundMethod(peek(0), AS_CLOSURE(method));
+  pop();
+  push(OBJ_VAL(bound));
+  return true;
 }
 
 // only nil and false are falsey in lox
@@ -409,8 +427,10 @@ static InterpretResult run() {
           break;
         }
         // only runs if the value couldn't be found
-        runtimeError("Undefined property '%s'.", name->chars);
-        return INTERPRET_RUNTIME_ERROR;
+        if (!bindMethod(instance->klass, name)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
       }
       case OP_SET_PROPERTY: {
         if (!IS_INSTANCE(peek(1))) {
@@ -425,6 +445,9 @@ static InterpretResult run() {
         push(value);
         break;
       }
+      case OP_METHOD:
+        defineMethod(READ_STRING());
+        break;
       case OP_RETURN: {
         Value result = pop(); // get result from the stack
         closeUpvalues(frame->slots); // close any upvalues remaining on the stack
