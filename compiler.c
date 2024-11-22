@@ -57,6 +57,7 @@ typedef enum {
   TYPE_FUNCTION,
   TYPE_SCRIPT,
   TYPE_METHOD,
+  TYPE_INITIALIZER,
 } FunctionType;
 
 typedef struct Compiler {
@@ -172,7 +173,11 @@ static int emitJump(uint8_t instruction) {
 }
 
 static void emitReturn() {
-  emitByte(OP_NIL);
+  if (current->type == TYPE_INITIALIZER) {
+    emitBytes(OP_GET_LOCAL, 0); // by the language spec, initializers return the newly created instance
+  } else {
+    emitByte(OP_NIL);
+  }
   emitByte(OP_RETURN);
 }
 
@@ -690,6 +695,10 @@ static void method() {
   uint8_t constant = identifierConstant(&parser.previous);
 
   FunctionType type = TYPE_METHOD;
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+    // actually, if the name of the method is "init" it is an initializer instead
+    type = TYPE_INITIALIZER;
+  }
   function(type);
   emitBytes(OP_METHOD, constant);
 }
@@ -742,6 +751,10 @@ static void returnStatement() {
   if (match(TOKEN_SEMICOLON)) {
     emitReturn(); // pushes nil onto the stack and then OP_RETURN
   } else {
+    if (current->type == TYPE_INITIALIZER) {
+      error("Can't return a value from an initializer.");
+    }
+
     expression(); // parse the expression, leaving its value on top of the stack
     consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
     emitByte(OP_RETURN);
