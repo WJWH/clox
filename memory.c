@@ -180,6 +180,7 @@ static void markRoots() {
   }
 
   markCompilerRoots();
+  markObject((Obj*)vm.initString);
   // globals are also roots
   markTable(&vm.globals);
 }
