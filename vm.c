@@ -495,6 +495,19 @@ static InterpretResult run() {
         frame = &vm.frames[vm.frameCount - 1];
         break;
       }
+      case OP_INHERIT: {
+        Value superclass = peek(1);
+
+        if (!IS_CLASS(superclass)) {
+          runtimeError("Superclass must be a class.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjClass* subclass = AS_CLASS(peek(0));
+        tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods); // acquire all the methods of the superclass
+        pop(); // Subclass.
+        break;
+      }
       case OP_RETURN: {
         Value result = pop(); // get result from the stack
         closeUpvalues(frame->slots); // close any upvalues remaining on the stack
