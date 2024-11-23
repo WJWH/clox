@@ -73,6 +73,7 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   struct ClassCompiler* enclosing;
+  bool hasSuperclass;
 } ClassCompiler;
 
 static void expression();
@@ -534,6 +535,13 @@ static void variable(bool canAssign) {
   namedVariable(parser.previous, canAssign);
 }
 
+static Token syntheticToken(const char* text) {
+  Token token;
+  token.start = text;
+  token.length = (int)strlen(text);
+  return token;
+}
+
 static void this_(bool canAssign) {
   if (currentClass == NULL) {
     error("Can't use 'this' outside of a class.");
@@ -722,6 +730,7 @@ static void classDeclaration() {
   // while compiling the class and it's methods, set classCompiler to something non-null so that
   // we know the `this` keyword is allowed. It's a stack so we can have nested classes
   ClassCompiler classCompiler;
+  classCompiler.hasSuperclass = false;
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
 
@@ -732,8 +741,13 @@ static void classDeclaration() {
     if (identifiersEqual(&className, &parser.previous)) {
       error("A class can't inherit from itself.");
     }
-    
+
+    beginScope();
+    addLocal(syntheticToken("super"));
+    defineVariable(0);
+
     namedVariable(className, false);
+    classCompiler.hasSuperclass = true;
     emitByte(OP_INHERIT);
   }
 
@@ -744,6 +758,11 @@ static void classDeclaration() {
   }
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
   emitByte(OP_POP); // remove class object again (it's a statement not an expression)
+
+  // close the new scope we opened to define "super" if a superclass was defined
+  if (classCompiler.hasSuperclass) {
+    endScope();
+  }
   // reset currentClass
   currentClass = currentClass->enclosing;
 }
