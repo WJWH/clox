@@ -725,6 +725,18 @@ static void classDeclaration() {
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
 
+  if (match(TOKEN_LESS)) { // superclass
+    consume(TOKEN_IDENTIFIER, "Expect superclass name.");
+    variable(false);
+
+    if (identifiersEqual(&className, &parser.previous)) {
+      error("A class can't inherit from itself.");
+    }
+    
+    namedVariable(className, false);
+    emitByte(OP_INHERIT);
+  }
+
   namedVariable(className, false); // put class object on top of the stack so method declarations can easily access it
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body.");
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
