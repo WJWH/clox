@@ -508,6 +508,15 @@ static InterpretResult run() {
         pop(); // Subclass.
         break;
       }
+      case OP_GET_SUPER: {
+        ObjString* name = READ_STRING(); // the method, from the constant table
+        ObjClass* superclass = AS_CLASS(pop()); // the superclass, which the compiler conveniently put on top of the stack for us
+
+        if (!bindMethod(superclass, name)) { // then try to look up the method in the superclass
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
       case OP_RETURN: {
         Value result = pop(); // get result from the stack
         closeUpvalues(frame->slots); // close any upvalues remaining on the stack
