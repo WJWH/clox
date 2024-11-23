@@ -554,8 +554,18 @@ static void super_(bool canAssign) {
   uint8_t name = identifierConstant(&parser.previous);
 
   namedVariable(syntheticToken("this"), false);
-  namedVariable(syntheticToken("super"), false);
-  emitBytes(OP_GET_SUPER, name);
+  if (match(TOKEN_LEFT_PAREN)) {
+    // optimization:the method from super is called immediately, so no need to make a closure out of it
+    // just read the arguments and invoke the method immediately.
+    uint8_t argCount = argumentList();
+    namedVariable(syntheticToken("super"), false);
+    emitBytes(OP_SUPER_INVOKE, name);
+    emitByte(argCount);
+  } else {
+    // no immediate call, so it's a closure
+    namedVariable(syntheticToken("super"), false);
+    emitBytes(OP_GET_SUPER, name);
+  }
 }
 
 static void this_(bool canAssign) {
