@@ -22,7 +22,7 @@ void freeTable(Table* table) {
 // linear probing until we find the key or an empty bucket
 // if we find an empty bucket before finding the key, the key is not yet present in the table
 static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
-  uint32_t index = key->hash % capacity;
+  uint32_t index = key->hash & (capacity - 1);
   Entry* tombstone = NULL; // used to store whether we've passed a tombstone during this search
 
   for (;;) {
@@ -40,7 +40,7 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
       return entry;
     }
 
-    index = (index + 1) % capacity;
+    index = (index + 1) & (capacity - 1);
   }
 }
 
